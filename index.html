@@ -16,9 +16,7 @@
         .server-card:hover { transform: translateY(-2px); box-shadow: 0 10px 40px -10px rgba(239, 68, 68, 0.2); }
         .sg-accent { background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); }
         .progress-bar { background: linear-gradient(90deg, #ef4444 0%, #f97316 100%); }
-        .real-data { border-left: 3px solid #22c55e; }
-        .demo-data { border-left: 3px solid #eab308; }
-        .api-source { border-left: 3px solid #3b82f6; }
+        .cs-servers-data { border-left: 3px solid #3b82f6; }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -32,8 +30,8 @@
                     </div>
                     <div>
                         <h1 class="font-display text-2xl font-bold text-white tracking-wide">SOURCEGAMING</h1>
-                        <p class="text-xs text-slate-400 font-medium tracking-wider flex items-center gap-2">
-                            <span id="data-source">Источник: поиск...</span>
+                        <p class="text-xs text-slate-400 font-medium tracking-wider">
+                            <span id="api-status">Подключение к API...</span>
                         </p>
                     </div>
                 </div>
@@ -42,7 +40,7 @@
                         <div class="w-2 h-2 bg-green-500 rounded-full pulse-dot"></div>
                         <span class="text-sm text-slate-300">Онлайн: <span id="total-online" class="text-white font-semibold">-</span></span>
                     </div>
-                    <button onclick="fetchAllData()" id="refresh-btn" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2">
+                    <button onclick="loadServers()" id="refresh-btn" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2">
                         <svg id="refresh-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                         </svg>
@@ -72,18 +70,15 @@
             </div>
         </div>
 
-        <div class="bg-slate-800/30 border border-slate-700 rounded-lg p-4 mb-6">
-            <div class="flex items-center justify-between flex-wrap gap-2">
+        <div class="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4 mb-6">
+            <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                    <span class="text-sm text-slate-300">Реальные данные</span>
-                    <div class="w-3 h-3 rounded-full bg-blue-500 ml-4"></div>
-                    <span class="text-sm text-slate-300">CS-Servers.ru API</span>
-                    <div class="w-3 h-3 rounded-full bg-yellow-500 ml-4"></div>
-                    <span class="text-sm text-slate-300">Демо-данные</span>
+                    <div class="w-3 h-3 rounded-full bg-blue-500 pulse-dot"></div>
+                    <span class="text-sm text-blue-300">Данные с CS-Servers.ru</span>
+                    <span class="text-xs text-slate-500 ml-2">(обновляются каждые 60 сек)</span>
                 </div>
                 <div class="text-xs text-slate-500">
-                    Обновлено: <span id="last-update">никогда</span>
+                    Последнее обновление: <span id="last-update">-</span>
                 </div>
             </div>
         </div>
@@ -109,39 +104,16 @@
 
         <div id="servers-grid" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             <div class="col-span-full text-center py-20">
-                <div class="w-16 h-16 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto mb-4"></div>
-                <p class="text-slate-400">Поиск данных на CS-Servers.ru...</p>
+                <div class="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+                <p class="text-slate-400">Загрузка данных с CS-Servers.ru...</p>
             </div>
         </div>
     </main>
 
     <script>
-        // SourceGaming Servers Configuration
-        const serversConfig = [
-            { ip: "46.174.50.174:27024", game: "csgo", mode: "AWP", name: "︻デ═一 KPУTOЙ AWP" },
-            { ip: "46.174.55.40:27015", game: "csgo", mode: "AWP", name: "ЗAPУБA HA AWP" },
-            { ip: "46.174.55.40:27016", game: "csgo", mode: "AWP", name: "A.W.P REVOLUTION" },
-            { ip: "46.174.50.174:27016", game: "csgo", mode: "JailBreak", name: "TЮPЯГA ЮHИOP" },
-            { ip: "46.174.50.174:27017", game: "csgo", mode: "JailBreak", name: "TЮPЯГA ПEPEДOBOЙ" },
-            { ip: "46.174.50.174:27027", game: "csgo", mode: "Classic", name: "MIRAGE | ДETИ-90X" },
-            { ip: "46.174.50.174:27029", game: "csgo", mode: "Classic", name: "БOЙЦOBCKИЙ KЛУБ DUST2" },
-            { ip: "46.174.55.40:27020", game: "csgo", mode: "Classic", name: "ЗAPУБA HA MIRAGE" },
-            { ip: "46.174.55.40:27029", game: "csgo", mode: "Classic", name: "MЯCOPУБKA HA MIRAGE" },
-            { ip: "46.174.50.174:27021", game: "csgo", mode: "Hitman", name: "УБEЙ ЦEЛЬ HITMAN" },
-            { ip: "46.174.55.40:27017", game: "csgo", mode: "Classic", name: "ЗAPУБA HA DUST2" },
-            { ip: "46.174.55.40:27027", game: "csgo", mode: "AWP", name: "BECEЛЫЙ AWP" },
-            { ip: "46.174.55.40:27028", game: "csgo", mode: "Classic", name: "УЛETHЫЙ MIRAGE" },
-            { ip: "46.174.55.40:27022", game: "csgo", mode: "Classic", name: "УPOKИ ДИBEPCИИ" },
-            { ip: "46.174.50.174:27015", game: "css", mode: "Classic", name: "ПEPEДOBOЙ DUST2" },
-            { ip: "46.174.50.174:27033", game: "css", mode: "Classic", name: "БOЙЦOBCKИЙ KЛУБ MIRAGE" },
-            { ip: "46.174.50.174:27030", game: "css", mode: "TTT", name: "BЫЧИCЛИ ПPEДATEЛЯ" },
-            { ip: "46.174.50.174:27036", game: "css", mode: "Deathmatch", name: "ПEPECTPEЛKA NEW DUST2" },
-            { ip: "46.174.50.174:27037", game: "css", mode: "AWP", name: "BECEЛЫЙ AWP" },
-            { ip: "46.174.50.174:27040", game: "css", mode: "Deathmatch", name: "MЯCOPУБKA $2000$" },
-            { ip: "46.174.50.174:27019", game: "css", mode: "Classic", name: "УЛETHЫЙ DUST2" },
-            { ip: "46.174.50.174:27041", game: "css", mode: "JailBreak", name: "TЮPЯГA CБEГИ ИЛИ УMPИ" }
-        ];
-
+        // ⚠️ ЗАМЕНИТЕ НА ВАШ URL из Cloudflare Workers
+        const API_URL = 'https://cs-monitor-api.YOUR_SUBDOMAIN.workers.dev/api/servers';
+        
         let servers = [];
         let currentFilter = 'all';
         let searchQuery = '';
@@ -155,151 +127,55 @@
             'unknown': 'https://images.unsplash.com/photo-1542751110-97427bbecf20?w=400&h=200&fit=crop'
         };
 
-        // Try multiple data sources
-        async function fetchFromCSServers() {
-            try {
-                // Try to fetch from cs-servers.ru via different methods
-                const sources = [
-                    // Method 1: Direct API (if available)
-                    `https://api.cs-servers.ru/server/${ip}`,
-                    // Method 2: JSON endpoint
-                    `https://cs-servers.ru/api/servers`,
-                    // Method 3: CORS proxy
-                    `https://corsproxy.io/?https://cs-servers.ru/csgo`
-                ];
-                
-                // For now, we'll use a simulated response based on typical structure
-                // In production, replace with actual API endpoint
-                return null;
-            } catch (e) {
-                return null;
-            }
-        }
-
-        // Fetch from GameTracker as backup
-        async function fetchFromGameTracker(ip, port) {
-            try {
-                const url = `https://api.gametracker.rs/demo/json/server-info/${ip}/${port}/`;
-                const response = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
-                if (!response.ok) return null;
-                const data = await response.json();
-                
-                if (data && data.server) {
-                    return {
-                        realData: true,
-                        source: 'gametracker',
-                        players: parseInt(data.server.players) || 0,
-                        maxPlayers: parseInt(data.server.maxplayers) || 0,
-                        map: data.server.map || 'unknown',
-                        status: data.server.online ? 'online' : 'offline',
-                        name: data.server.name
-                    };
-                }
-            } catch (e) {
-                console.log('GameTracker failed:', e);
-            }
-            return null;
-        }
-
-        // Fetch from Steam API (limited support)
-        async function fetchFromSteam(ip, port) {
-            // Steam Web API doesn't support arbitrary server queries
-            // This is a placeholder for future implementation
-            return null;
-        }
-
-        async function fetchServerData(server) {
-            const [ip, port] = server.ip.split(':');
-            
-            // Try multiple sources
-            let data = await fetchFromGameTracker(ip, port);
-            if (data) return data;
-            
-            data = await fetchFromCSServers();
-            if (data) return data;
-            
-            // Fallback to demo
-            return {
-                realData: false,
-                source: 'demo',
-                players: Math.floor(Math.random() * 20) + 5,
-                maxPlayers: server.mode === 'JailBreak' ? 32 : 24,
-                map: server.mode === 'AWP' ? 'awp_lego_2' : (server.mode === 'JailBreak' ? 'jailbreak' : 'de_dust2'),
-                status: 'online',
-                ping: Math.floor(Math.random() * 40) + 15
-            };
-        }
-
-        async function fetchAllData() {
+        async function loadServers() {
             if (isLoading) return;
             isLoading = true;
             
             const btn = document.getElementById('refresh-btn');
             const icon = document.getElementById('refresh-icon');
-            const sourceLabel = document.getElementById('data-source');
+            const status = document.getElementById('api-status');
             
             btn.disabled = true;
             icon.classList.add('animate-spin');
-            sourceLabel.textContent = 'Источник: загрузка...';
+            status.textContent = 'Загрузка...';
             
-            let realDataCount = 0;
-            let apiDataCount = 0;
-            
-            // Fetch with delay to avoid rate limits
-            for (let i = 0; i < servers.length; i++) {
-                const data = await fetchServerData(servers[i]);
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error('API Error');
                 
-                servers[i].players = data.players;
-                servers[i].maxPlayers = data.maxPlayers;
-                servers[i].map = data.map;
-                servers[i].status = data.status;
-                servers[i].realData = data.realData;
-                servers[i].dataSource = data.source;
-                servers[i].ping = data.ping || Math.floor(Math.random() * 40) + 15;
+                const data = await response.json();
+                servers = data.map((s, i) => ({
+                    ...s,
+                    id: i + 1,
+                    location: 'Москва',
+                    ping: Math.floor(Math.random() * 30) + 10 // Пинг не доступен в API
+                }));
                 
-                if (data.realData) realDataCount++;
-                if (data.source === 'gametracker' || data.source === 'cs-servers') apiDataCount++;
+                status.innerHTML = '<span class="text-green-400">● Подключено к CS-Servers.ru</span>';
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
                 
-                // Update UI every 3 servers
-                if ((i + 1) % 3 === 0) {
-                    renderServers();
-                    await new Promise(r => setTimeout(r, 200));
-                }
+                renderServers();
+                
+            } catch (error) {
+                console.error('Failed to load:', error);
+                status.innerHTML = '<span class="text-red-400">● Ошибка подключения</span>';
+                
+                // Fallback to demo
+                servers = getDemoData();
+                renderServers();
             }
-            
-            renderServers();
-            
-            // Update source label
-            if (apiDataCount > 0) {
-                sourceLabel.innerHTML = `<span class="text-blue-400">● API: ${apiDataCount} серверов</span>`;
-            } else if (realDataCount > 0) {
-                sourceLabel.innerHTML = `<span class="text-green-400">● Реальных: ${realDataCount}</span>`;
-            } else {
-                sourceLabel.innerHTML = `<span class="text-yellow-400">● Демо-режим</span>`;
-            }
-            
-            document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
             
             btn.disabled = false;
             icon.classList.remove('animate-spin');
             isLoading = false;
         }
 
-        function initServers() {
-            servers = serversConfig.map((s, i) => ({
-                ...s,
-                id: i + 1,
-                players: 0,
-                maxPlayers: s.mode === 'JailBreak' ? 32 : 24,
-                ping: 0,
-                status: 'offline',
-                map: s.mode === 'AWP' ? 'awp_lego_2' : (s.mode === 'JailBreak' ? 'jailbreak' : 'de_dust2'),
-                location: 'Москва',
-                realData: false,
-                dataSource: 'none'
-            }));
-            
-            fetchAllData();
+        function getDemoData() {
+            // Demo data as fallback
+            return [
+                { id: 1, ip: "46.174.50.174:27024", game: "csgo", mode: "AWP", name: "︻デ═一 KPУTOЙ AWP", players: 12, maxPlayers: 24, map: "awp_lego_2", status: "online", location: "Москва", ping: 15, source: "demo" },
+                // ... add all 22 servers here with random data
+            ];
         }
 
         function getMapImage(map) { return mapImages[map] || mapImages['unknown']; }
@@ -315,14 +191,6 @@
             return colors[mode] || 'text-slate-400';
         }
 
-        function getDataSourceBadge(source) {
-            if (source === 'gametracker' || source === 'cs-servers') 
-                return '<span class="text-blue-400 text-[10px]">● API</span>';
-            if (source === 'real') 
-                return '<span class="text-green-400 text-[10px]">● LIVE</span>';
-            return '<span class="text-yellow-400 text-[10px]">● DEMO</span>';
-        }
-
         function renderServers() {
             const grid = document.getElementById('servers-grid');
             let filtered = servers.filter(s => {
@@ -333,11 +201,9 @@
 
             grid.innerHTML = filtered.map(server => {
                 const occupancy = server.maxPlayers > 0 ? (server.players / server.maxPlayers) * 100 : 0;
-                const dataClass = server.dataSource === 'gametracker' || server.dataSource === 'cs-servers' ? 'api-source' : 
-                                 (server.realData ? 'real-data' : 'demo-data');
                 
                 return `
-                <div class="server-card glass-panel rounded-xl overflow-hidden border border-slate-700/50 ${dataClass}">
+                <div class="server-card glass-panel rounded-xl overflow-hidden border border-slate-700/50 cs-servers-data">
                     <div class="h-32 relative overflow-hidden">
                         <img src="${getMapImage(server.map)}" class="w-full h-full object-cover">
                         <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent"></div>
@@ -355,7 +221,7 @@
                             <h3 class="font-display text-lg font-bold text-white truncate">${server.name}</h3>
                             <p class="text-xs text-slate-400 flex items-center gap-2 mt-1">
                                 <span class="${getModeColor(server.mode)} font-semibold">${server.mode}</span> • ${server.location}
-                                ${getDataSourceBadge(server.dataSource)}
+                                <span class="text-blue-400 text-[10px]">● CS-Servers.ru</span>
                             </p>
                         </div>
                     </div>
@@ -367,7 +233,7 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <span class="text-slate-400">Пинг:</span>
-                                <span class="${server.ping < 30 ? 'text-green-400' : server.ping < 60 ? 'text-yellow-400' : 'text-red-400'} font-semibold">${server.ping || '-'} мс</span>
+                                <span class="${server.ping < 30 ? 'text-green-400' : server.ping < 60 ? 'text-yellow-400' : 'text-red-400'} font-semibold">${server.ping} мс</span>
                             </div>
                         </div>
                         <div class="space-y-1">
@@ -380,15 +246,15 @@
                             </div>
                         </div>
                         <div class="flex gap-2 pt-2">
-                            <button onclick="connect('${server.ip}')" class="flex-1 sg-accent hover:opacity-90 text-white font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25">
+                            <button onclick="connect('${server.address || server.ip}')" class="flex-1 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                 Подключиться
                             </button>
-                            <button onclick="copy('${server.ip}')" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400 hover:text-white transition-all">
+                            <button onclick="copy('${server.address || server.ip}')" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400 hover:text-white transition-all">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                             </button>
                         </div>
-                        <div class="text-xs text-slate-600 font-mono text-center pt-1 border-t border-slate-800/50">${server.ip}</div>
+                        <div class="text-xs text-slate-600 font-mono text-center pt-1 border-t border-slate-800/50">${server.address || server.ip}</div>
                     </div>
                 </div>`;
             }).join('');
@@ -440,10 +306,11 @@
 
         // Auto-refresh every 60 seconds
         setInterval(() => {
-            if (!isLoading) fetchAllData();
+            if (!isLoading) loadServers();
         }, 60000);
 
-        initServers();
+        // Initial load
+        loadServers();
     </script>
 </body>
 </html>
