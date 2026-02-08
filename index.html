@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SourceGaming Monitor - CS:GO & CSS Servers</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0a0a0f; color: #e2e8f0; }
+        .font-display { font-family: 'Rajdhani', sans-serif; }
+        .glass-panel { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(148, 163, 184, 0.1); }
+        .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        .server-card { transition: all 0.3s ease; }
+        .server-card:hover { transform: translateY(-2px); box-shadow: 0 10px 40px -10px rgba(239, 68, 68, 0.2); }
+        .sg-accent { background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); }
+        .progress-bar { background: linear-gradient(90deg, #ef4444 0%, #f97316 100%); }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+
+    <header class="fixed top-0 w-full z-50 glass-panel border-b border-slate-800/50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 sg-accent rounded-lg flex items-center justify-center shadow-lg">
+                        <span class="text-white font-bold text-lg">SG</span>
+                    </div>
+                    <div>
+                        <h1 class="font-display text-2xl font-bold text-white tracking-wide">SOURCEGAMING</h1>
+                        <p class="text-xs text-slate-400 font-medium tracking-wider">CS:GO & CSS SERVER MONITOR</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700">
+                        <div class="w-2 h-2 bg-green-500 rounded-full pulse-dot"></div>
+                        <span class="text-sm text-slate-300">Онлайн: <span id="total-online" class="text-white font-semibold">0</span></span>
+                    </div>
+                    <button onclick="refreshServers()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2">
+                        <svg id="refresh-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Обновить
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        
+        <div class="flex flex-col md:flex-row gap-4 mb-8 items-center justify-between">
+            <div class="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
+                <button onclick="filterServers('all')" class="filter-btn active px-6 py-2 rounded-full bg-slate-800 border border-slate-700 text-sm font-medium transition-all hover:bg-slate-700 text-white" data-filter="all">Все сервера</button>
+                <button onclick="filterServers('csgo')" class="filter-btn px-6 py-2 rounded-full bg-slate-800/50 border border-slate-700 text-slate-400 text-sm font-medium transition-all hover:bg-slate-700 hover:text-white" data-filter="csgo">CS:GO</button>
+                <button onclick="filterServers('css')" class="filter-btn px-6 py-2 rounded-full bg-slate-800/50 border border-slate-700 text-slate-400 text-sm font-medium transition-all hover:bg-slate-700 hover:text-white" data-filter="css">CSS</button>
+            </div>
+            
+            <div class="relative w-full md:w-96">
+                <input type="text" id="search-input" placeholder="Поиск по названию, карте или IP..." 
+                    class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-3 pl-11 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-all"
+                    oninput="searchServers(this.value)">
+                <svg class="w-5 h-5 text-slate-500 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="glass-panel rounded-xl p-6 border border-slate-700/50">
+                <div class="text-slate-400 text-sm mb-1">Общий онлайн</div>
+                <div class="text-3xl font-display font-bold text-white" id="stat-total-players">0</div>
+            </div>
+            <div class="glass-panel rounded-xl p-6 border border-slate-700/50">
+                <div class="text-slate-400 text-sm mb-1">Свободных слотов</div>
+                <div class="text-3xl font-display font-bold text-orange-400" id="stat-free-slots">0</div>
+            </div>
+            <div class="glass-panel rounded-xl p-6 border border-slate-700/50">
+                <div class="text-slate-400 text-sm mb-1">Средний пинг</div>
+                <div class="text-3xl font-display font-bold text-blue-400" id="stat-avg-ping">0</div>
+            </div>
+            <div class="glass-panel rounded-xl p-6 border border-slate-700/50">
+                <div class="text-slate-400 text-sm mb-1">Активных карт</div>
+                <div class="text-3xl font-display font-bold text-purple-400" id="stat-active-maps">0</div>
+            </div>
+        </div>
+
+        <div id="servers-grid" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+    </main>
+
+    <script>
+        const serversConfig = [
+            { ip: "46.174.50.174:27024", game: "csgo", mode: "AWP", name: "︻デ═一 KPУTOЙ AWP" },
+            { ip: "46.174.55.40:27015", game: "csgo", mode: "AWP", name: "ЗAPУБA HA AWP" },
+            { ip: "46.174.55.40:27016", game: "csgo", mode: "AWP", name: "A.W.P REVOLUTION" },
+            { ip: "46.174.50.174:27016", game: "csgo", mode: "JailBreak", name: "TЮPЯГA ЮHИOP" },
+            { ip: "46.174.50.174:27017", game: "csgo", mode: "JailBreak", name: "TЮPЯГA ПEPEДOBOЙ" },
+            { ip: "46.174.50.174:27027", game: "csgo", mode: "Classic", name: "MIRAGE | ДETИ-90X" },
+            { ip: "46.174.50.174:27029", game: "csgo", mode: "Classic", name: "БOЙЦOBCKИЙ KЛУБ DUST2" },
+            { ip: "46.174.55.40:27020", game: "csgo", mode: "Classic", name: "ЗAPУБA HA MIRAGE" },
+            { ip: "46.174.55.40:27029", game: "csgo", mode: "Classic", name: "MЯCOPУБKA HA MIRAGE" },
+            { ip: "46.174.50.174:27021", game: "csgo", mode: "Hitman", name: "УБEЙ ЦEЛЬ HITMAN" },
+            { ip: "46.174.55.40:27017", game: "csgo", mode: "Classic", name: "ЗAPУБA HA DUST2" },
+            { ip: "46.174.55.40:27027", game: "csgo", mode: "AWP", name: "BECEЛЫЙ AWP" },
+            { ip: "46.174.55.40:27028", game: "csgo", mode: "Classic", name: "УЛETHЫЙ MIRAGE" },
+            { ip: "46.174.55.40:27022", game: "csgo", mode: "Classic", name: "УPOKИ ДИBEPCИИ" },
+            { ip: "46.174.50.174:27015", game: "css", mode: "Classic", name: "ПEPEДOBOЙ DUST2" },
+            { ip: "46.174.50.174:27033", game: "css", mode: "Classic", name: "БOЙЦOBCKИЙ KЛУБ MIRAGE" },
+            { ip: "46.174.50.174:27030", game: "css", mode: "TTT", name: "BЫЧИCЛИ ПPEДATEЛЯ" },
+            { ip: "46.174.50.174:27036", game: "css", mode: "Deathmatch", name: "ПEPECTPEЛKA NEW DUST2" },
+            { ip: "46.174.50.174:27037", game: "css", mode: "AWP", name: "BECEЛЫЙ AWP" },
+            { ip: "46.174.50.174:27040", game: "css", mode: "Deathmatch", name: "MЯCOPУБKA $2000$" },
+            { ip: "46.174.50.174:27019", game: "css", mode: "Classic", name: "УЛETHЫЙ DUST2" },
+            { ip: "46.174.50.174:27041", game: "css", mode: "JailBreak", name: "TЮPЯГA CБEГИ ИЛИ УMPИ" }
+        ];
+
+        let servers = [];
+        let currentFilter = 'all';
+        let searchQuery = '';
+
+        const mapImages = {
+            'de_dust2': 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=200&fit=crop',
+            'de_mirage': 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=400&h=200&fit=crop',
+            'awp_lego_2': 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&h=200&fit=crop',
+            'jailbreak': 'https://images.unsplash.com/photo-1552820728-8b83bb6b2b0a?w=400&h=200&fit=crop',
+            'unknown': 'https://images.unsplash.com/photo-1542751110-97427bbecf20?w=400&h=200&fit=crop'
+        };
+
+        function initServers() {
+            servers = serversConfig.map((s, i) => ({
+                ...s,
+                id: i + 1,
+                players: Math.floor(Math.random() * 20) + 5,
+                maxPlayers: s.mode === 'JailBreak' ? 32 : 24,
+                ping: Math.floor(Math.random() * 40) + 15,
+                status: 'online',
+                map: s.mode === 'AWP' ? 'awp_lego_2' : (s.mode === 'JailBreak' ? 'jailbreak' : 'de_dust2'),
+                location: 'Москва'
+            }));
+            renderServers();
+        }
+
+        function getMapImage(map) { return mapImages[map] || mapImages['unknown']; }
+        
+        function getGameBadge(game) {
+            return game === 'csgo' 
+                ? `<span class="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs font-bold rounded border border-orange-500/30">CS:GO</span>`
+                : `<span class="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs font-bold rounded border border-blue-500/30">CSS</span>`;
+        }
+
+        function getModeColor(mode) {
+            const colors = { 'AWP': 'text-purple-400', 'JailBreak': 'text-yellow-400', 'Classic': 'text-green-400', 'Deathmatch': 'text-red-400', 'Hitman': 'text-pink-400', 'TTT': 'text-indigo-400' };
+            return colors[mode] || 'text-slate-400';
+        }
+
+        function renderServers() {
+            const grid = document.getElementById('servers-grid');
+            let filtered = servers.filter(s => {
+                const matchesFilter = currentFilter === 'all' || s.game === currentFilter;
+                const matchesSearch = !searchQuery || s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.ip.includes(searchQuery);
+                return matchesFilter && matchesSearch;
+            });
+
+            grid.innerHTML = filtered.map(server => {
+                const occupancy = (server.players / server.maxPlayers) * 100;
+                return `
+                <div class="server-card glass-panel rounded-xl overflow-hidden border border-slate-700/50">
+                    <div class="h-32 relative overflow-hidden">
+                        <img src="${getMapImage(server.map)}" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent"></div>
+                        <div class="absolute top-3 left-3 flex gap-2">
+                            ${getGameBadge(server.game)}
+                            <span class="px-2 py-1 bg-slate-900/80 backdrop-blur text-slate-300 text-xs rounded border border-slate-700">${server.map}</span>
+                        </div>
+                        <div class="absolute top-3 right-3">
+                            <div class="flex items-center gap-2 px-3 py-1 bg-slate-900/80 backdrop-blur rounded-full border border-slate-700">
+                                <div class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></div>
+                                <span class="text-xs font-medium text-slate-300">Онлайн</span>
+                            </div>
+                        </div>
+                        <div class="absolute bottom-3 left-3 right-3">
+                            <h3 class="font-display text-lg font-bold text-white truncate">${server.name}</h3>
+                            <p class="text-xs text-slate-400 flex items-center gap-2 mt-1">
+                                <span class="${getModeColor(server.mode)} font-semibold">${server.mode}</span> • ${server.location}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        <div class="flex items-center justify-between text-sm">
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-400">Игроки:</span>
+                                <span class="text-white font-semibold">${server.players}/${server.maxPlayers}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-400">Пинг:</span>
+                                <span class="text-green-400 font-semibold">${server.ping} мс</span>
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs text-slate-500">
+                                <span>Заполненность</span>
+                                <span>${Math.round(occupancy)}%</span>
+                            </div>
+                            <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                <div class="h-full progress-bar rounded-full transition-all duration-500" style="width: ${occupancy}%"></div>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 pt-2">
+                            <button onclick="connect('${server.ip}')" class="flex-1 sg-accent hover:opacity-90 text-white font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                Подключиться
+                            </button>
+                            <button onclick="copy('${server.ip}')" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400 hover:text-white transition-all">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            </button>
+                        </div>
+                        <div class="text-xs text-slate-600 font-mono text-center pt-1 border-t border-slate-800/50">${server.ip}</div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            updateStats();
+        }
+
+        function updateStats() {
+            const online = servers.filter(s => s.status === 'online');
+            document.getElementById('total-online').textContent = online.reduce((a, s) => a + s.players, 0);
+            document.getElementById('stat-total-players').textContent = online.reduce((a, s) => a + s.players, 0);
+            document.getElementById('stat-free-slots').textContent = online.reduce((a, s) => a + (s.maxPlayers - s.players), 0);
+            document.getElementById('stat-avg-ping').textContent = Math.round(online.reduce((a, s) => a + s.ping, 0) / online.length);
+            document.getElementById('stat-active-maps').textContent = new Set(online.map(s => s.map)).size;
+        }
+
+        function filterServers(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.dataset.filter === filter) {
+                    btn.classList.add('bg-slate-800', 'text-white');
+                    btn.classList.remove('bg-slate-800/50', 'text-slate-400');
+                } else {
+                    btn.classList.remove('bg-slate-800', 'text-white');
+                    btn.classList.add('bg-slate-800/50', 'text-slate-400');
+                }
+            });
+            renderServers();
+        }
+
+        function searchServers(query) {
+            searchQuery = query;
+            renderServers();
+        }
+
+        function refreshServers() {
+            const icon = document.getElementById('refresh-icon');
+            icon.classList.add('animate-spin');
+            servers.forEach(s => {
+                s.players = Math.max(0, Math.min(s.maxPlayers, s.players + Math.floor(Math.random() * 6) - 3));
+            });
+            setTimeout(() => {
+                renderServers();
+                icon.classList.remove('animate-spin');
+            }, 500);
+        }
+
+        function connect(ip) {
+            window.location.href = `steam://connect/${ip}`;
+            setTimeout(() => navigator.clipboard.writeText(`connect ${ip}`), 1000);
+        }
+
+        function copy(ip) {
+            navigator.clipboard.writeText(ip);
+            alert('IP скопирован: ' + ip);
+        }
+
+        initServers();
+    </script>
+</body>
+</html>
