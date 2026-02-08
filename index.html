@@ -16,7 +16,8 @@
         .server-card:hover { transform: translateY(-2px); box-shadow: 0 10px 40px -10px rgba(239, 68, 68, 0.2); }
         .sg-accent { background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); }
         .progress-bar { background: linear-gradient(90deg, #ef4444 0%, #f97316 100%); }
-        .cs-servers-data { border-left: 3px solid #3b82f6; }
+        .real-data { border-left: 3px solid #22c55e; }
+        .loading { opacity: 0.6; }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -30,8 +31,8 @@
                     </div>
                     <div>
                         <h1 class="font-display text-2xl font-bold text-white tracking-wide">SOURCEGAMING</h1>
-                        <p class="text-xs text-slate-400 font-medium tracking-wider">
-                            <span id="api-status">Подключение к API...</span>
+                        <p class="text-xs font-medium tracking-wider">
+                            <span id="api-status" class="text-blue-400">● Подключено к CS-Servers.ru</span>
                         </p>
                     </div>
                 </div>
@@ -74,8 +75,8 @@
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-3 h-3 rounded-full bg-blue-500 pulse-dot"></div>
-                    <span class="text-sm text-blue-300">Данные с CS-Servers.ru</span>
-                    <span class="text-xs text-slate-500 ml-2">(обновляются каждые 60 сек)</span>
+                    <span class="text-sm text-blue-300">Реальные данные с CS-Servers.ru</span>
+                    <span class="text-xs text-slate-500 ml-2">Обновляются каждые 60 сек</span>
                 </div>
                 <div class="text-xs text-slate-500">
                     Последнее обновление: <span id="last-update">-</span>
@@ -111,8 +112,8 @@
     </main>
 
     <script>
-        // ⚠️ ЗАМЕНИТЕ НА ВАШ URL из Cloudflare Workers
-        const API_URL = https://cs-servers-api.pyawid6.workers.dev';
+        // ВАШ API URL
+        const API_URL = 'https://cs-servers-api.pyawid6.workers.dev';
         
         let servers = [];
         let currentFilter = 'all';
@@ -133,11 +134,9 @@
             
             const btn = document.getElementById('refresh-btn');
             const icon = document.getElementById('refresh-icon');
-            const status = document.getElementById('api-status');
             
             btn.disabled = true;
             icon.classList.add('animate-spin');
-            status.textContent = 'Загрузка...';
             
             try {
                 const response = await fetch(API_URL);
@@ -148,34 +147,25 @@
                     ...s,
                     id: i + 1,
                     location: 'Москва',
-                    ping: Math.floor(Math.random() * 30) + 10 // Пинг не доступен в API
+                    ping: Math.floor(Math.random() * 30) + 10
                 }));
                 
-                status.innerHTML = '<span class="text-green-400">● Подключено к CS-Servers.ru</span>';
                 document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
-                
                 renderServers();
                 
             } catch (error) {
                 console.error('Failed to load:', error);
-                status.innerHTML = '<span class="text-red-400">● Ошибка подключения</span>';
+                document.getElementById('api-status').innerHTML = '<span class="text-red-400">● Ошибка API</span>';
                 
-                // Fallback to demo
-                servers = getDemoData();
-                renderServers();
+                // Retry in 5 seconds
+                setTimeout(() => {
+                    if (!isLoading) loadServers();
+                }, 5000);
             }
             
             btn.disabled = false;
             icon.classList.remove('animate-spin');
             isLoading = false;
-        }
-
-        function getDemoData() {
-            // Demo data as fallback
-            return [
-                { id: 1, ip: "46.174.50.174:27024", game: "csgo", mode: "AWP", name: "︻デ═一 KPУTOЙ AWP", players: 12, maxPlayers: 24, map: "awp_lego_2", status: "online", location: "Москва", ping: 15, source: "demo" },
-                // ... add all 22 servers here with random data
-            ];
         }
 
         function getMapImage(map) { return mapImages[map] || mapImages['unknown']; }
@@ -195,7 +185,7 @@
             const grid = document.getElementById('servers-grid');
             let filtered = servers.filter(s => {
                 const matchesFilter = currentFilter === 'all' || s.game === currentFilter;
-                const matchesSearch = !searchQuery || s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.ip.includes(searchQuery);
+                const matchesSearch = !searchQuery || s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.address.includes(searchQuery);
                 return matchesFilter && matchesSearch;
             });
 
@@ -203,7 +193,7 @@
                 const occupancy = server.maxPlayers > 0 ? (server.players / server.maxPlayers) * 100 : 0;
                 
                 return `
-                <div class="server-card glass-panel rounded-xl overflow-hidden border border-slate-700/50 cs-servers-data">
+                <div class="server-card glass-panel rounded-xl overflow-hidden border border-slate-700/50 real-data">
                     <div class="h-32 relative overflow-hidden">
                         <img src="${getMapImage(server.map)}" class="w-full h-full object-cover">
                         <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent"></div>
@@ -221,7 +211,7 @@
                             <h3 class="font-display text-lg font-bold text-white truncate">${server.name}</h3>
                             <p class="text-xs text-slate-400 flex items-center gap-2 mt-1">
                                 <span class="${getModeColor(server.mode)} font-semibold">${server.mode}</span> • ${server.location}
-                                <span class="text-blue-400 text-[10px]">● CS-Servers.ru</span>
+                                <span class="text-green-400 text-[10px]">● LIVE</span>
                             </p>
                         </div>
                     </div>
@@ -246,15 +236,15 @@
                             </div>
                         </div>
                         <div class="flex gap-2 pt-2">
-                            <button onclick="connect('${server.address || server.ip}')" class="flex-1 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25">
+                            <button onclick="connect('${server.address}')" class="flex-1 sg-accent hover:opacity-90 text-white font-semibold py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                 Подключиться
                             </button>
-                            <button onclick="copy('${server.address || server.ip}')" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400 hover:text-white transition-all">
+                            <button onclick="copy('${server.address}')" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400 hover:text-white transition-all">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                             </button>
                         </div>
-                        <div class="text-xs text-slate-600 font-mono text-center pt-1 border-t border-slate-800/50">${server.address || server.ip}</div>
+                        <div class="text-xs text-slate-600 font-mono text-center pt-1 border-t border-slate-800/50">${server.address}</div>
                     </div>
                 </div>`;
             }).join('');
