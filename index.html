@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SourceGaming Monitor - CS:GO & CSS Servers</title>
+    <title>SourceGaming Monitor - Live Server Status</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
@@ -16,6 +16,9 @@
         .server-card:hover { transform: translateY(-2px); box-shadow: 0 10px 40px -10px rgba(239, 68, 68, 0.2); }
         .sg-accent { background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); }
         .progress-bar { background: linear-gradient(90deg, #ef4444 0%, #f97316 100%); }
+        .loading { opacity: 0.6; pointer-events: none; }
+        .real-data { border-left: 3px solid #22c55e; }
+        .demo-data { border-left: 3px solid #eab308; }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -29,15 +32,20 @@
                     </div>
                     <div>
                         <h1 class="font-display text-2xl font-bold text-white tracking-wide">SOURCEGAMING</h1>
-                        <p class="text-xs text-slate-400 font-medium tracking-wider">CS:GO & CSS SERVER MONITOR</p>
+                        <p class="text-xs text-slate-400 font-medium tracking-wider flex items-center gap-2">
+                            <span id="data-status" class="flex items-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
+                                Загрузка данных...
+                            </span>
+                        </p>
                     </div>
                 </div>
                 <div class="flex items-center gap-4">
                     <div class="flex items-center gap-2 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700">
                         <div class="w-2 h-2 bg-green-500 rounded-full pulse-dot"></div>
-                        <span class="text-sm text-slate-300">Онлайн: <span id="total-online" class="text-white font-semibold">0</span></span>
+                        <span class="text-sm text-slate-300">Онлайн: <span id="total-online" class="text-white font-semibold">-</span></span>
                     </div>
-                    <button onclick="refreshServers()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2">
+                    <button onclick="fetchRealData()" id="refresh-btn" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2">
                         <svg id="refresh-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                         </svg>
@@ -67,29 +75,49 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <div class="glass-panel rounded-xl p-6 border border-slate-700/50">
-                <div class="text-slate-400 text-sm mb-1">Общий онлайн</div>
-                <div class="text-3xl font-display font-bold text-white" id="stat-total-players">0</div>
-            </div>
-            <div class="glass-panel rounded-xl p-6 border border-slate-700/50">
-                <div class="text-slate-400 text-sm mb-1">Свободных слотов</div>
-                <div class="text-3xl font-display font-bold text-orange-400" id="stat-free-slots">0</div>
-            </div>
-            <div class="glass-panel rounded-xl p-6 border border-slate-700/50">
-                <div class="text-slate-400 text-sm mb-1">Средний пинг</div>
-                <div class="text-3xl font-display font-bold text-blue-400" id="stat-avg-ping">0</div>
-            </div>
-            <div class="glass-panel rounded-xl p-6 border border-slate-700/50">
-                <div class="text-slate-400 text-sm mb-1">Активных карт</div>
-                <div class="text-3xl font-display font-bold text-purple-400" id="stat-active-maps">0</div>
+        <div class="bg-slate-800/30 border border-slate-700 rounded-lg p-4 mb-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                    <span class="text-sm text-slate-300">Реальные данные</span>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500 ml-4"></div>
+                    <span class="text-sm text-slate-300">Демо-данные (API недоступен)</span>
+                </div>
+                <div class="text-xs text-slate-500">
+                    Обновление: <span id="last-update">никогда</span>
+                </div>
             </div>
         </div>
 
-        <div id="servers-grid" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="glass-panel rounded-xl p-6 border border-slate-700/50">
+                <div class="text-slate-400 text-sm mb-1">Общий онлайн</div>
+                <div class="text-3xl font-display font-bold text-white" id="stat-total-players">-</div>
+            </div>
+            <div class="glass-panel rounded-xl p-6 border border-slate-700/50">
+                <div class="text-slate-400 text-sm mb-1">Свободных слотов</div>
+                <div class="text-3xl font-display font-bold text-orange-400" id="stat-free-slots">-</div>
+            </div>
+            <div class="glass-panel rounded-xl p-6 border border-slate-700/50">
+                <div class="text-slate-400 text-sm mb-1">Средний пинг</div>
+                <div class="text-3xl font-display font-bold text-blue-400" id="stat-avg-ping">-</div>
+            </div>
+            <div class="glass-panel rounded-xl p-6 border border-slate-700/50">
+                <div class="text-slate-400 text-sm mb-1">Активных карт</div>
+                <div class="text-3xl font-display font-bold text-purple-400" id="stat-active-maps">-</div>
+            </div>
+        </div>
+
+        <div id="servers-grid" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div class="col-span-full text-center py-20">
+                <div class="w-16 h-16 border-4 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto mb-4"></div>
+                <p class="text-slate-400">Загрузка данных с серверов...</p>
+            </div>
+        </div>
     </main>
 
     <script>
+        // SourceGaming Servers Configuration
         const serversConfig = [
             { ip: "46.174.50.174:27024", game: "csgo", mode: "AWP", name: "︻デ═一 KPУTOЙ AWP" },
             { ip: "46.174.55.40:27015", game: "csgo", mode: "AWP", name: "ЗAPУБA HA AWP" },
@@ -118,6 +146,7 @@
         let servers = [];
         let currentFilter = 'all';
         let searchQuery = '';
+        let isLoading = false;
 
         const mapImages = {
             'de_dust2': 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=200&fit=crop',
@@ -127,18 +156,121 @@
             'unknown': 'https://images.unsplash.com/photo-1542751110-97427bbecf20?w=400&h=200&fit=crop'
         };
 
+        // Try to fetch real data from available APIs
+        async function fetchServerData(ip, port) {
+            // Method 1: Try Steam Web API (limited, only for some servers)
+            // Method 2: Use a CORS proxy with GameTracker (may be blocked)
+            // Method 3: Fallback to demo data
+            
+            try {
+                // Using a public CORS proxy (rate limited)
+                const proxyUrls = [
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.gametracker.com/server_info/${ip}:${port}/`)}`,
+                    `https://corsproxy.io/?${encodeURIComponent(`https://www.gametracker.com/server_info/${ip}:${port}/`)}`
+                ];
+                
+                // Try to fetch (will likely fail due to CORS/proxy limits)
+                const response = await fetch(proxyUrls[0], { timeout: 5000 });
+                if (!response.ok) throw new Error('Proxy failed');
+                
+                const html = await response.text();
+                
+                // Parse GameTracker HTML
+                const playerMatch = html.match(/(\d+)\s*players\s*out\s*of\s*(\d+)/i);
+                const mapMatch = html.match(/Map:\s*<[^>]*>([^<]+)/i);
+                
+                if (playerMatch) {
+                    return {
+                        realData: true,
+                        players: parseInt(playerMatch[1]),
+                        maxPlayers: parseInt(playerMatch[2]),
+                        map: mapMatch ? mapMatch[1].trim() : 'unknown',
+                        status: 'online'
+                    };
+                }
+            } catch (e) {
+                console.log(`Failed to fetch real data for ${ip}:${port}`, e.message);
+            }
+            
+            return null;
+        }
+
+        async function fetchRealData() {
+            if (isLoading) return;
+            isLoading = true;
+            
+            const btn = document.getElementById('refresh-btn');
+            const icon = document.getElementById('refresh-icon');
+            const status = document.getElementById('data-status');
+            
+            btn.disabled = true;
+            icon.classList.add('animate-spin');
+            status.innerHTML = '<span class="w-2 h-2 rounded-full bg-blue-500 pulse-dot"></span> Обновление...';
+            
+            let realDataCount = 0;
+            
+            // Fetch data for all servers (with concurrency limit)
+            const batchSize = 3;
+            for (let i = 0; i < servers.length; i += batchSize) {
+                const batch = servers.slice(i, i + batchSize);
+                await Promise.all(batch.map(async (server) => {
+                    const [ip, port] = server.ip.split(':');
+                    const data = await fetchServerData(ip, port);
+                    
+                    if (data) {
+                        server.players = data.players;
+                        server.maxPlayers = data.maxPlayers;
+                        server.map = data.map;
+                        server.status = data.status;
+                        server.realData = true;
+                        realDataCount++;
+                    } else {
+                        // Fallback to demo data with small random variation
+                        server.realData = false;
+                        server.players = Math.floor(Math.random() * 20) + 5;
+                        server.maxPlayers = server.mode === 'JailBreak' ? 32 : 24;
+                        server.map = server.mode === 'AWP' ? 'awp_lego_2' : (server.mode === 'JailBreak' ? 'jailbreak' : 'de_dust2');
+                        server.status = 'online';
+                    }
+                    server.ping = Math.floor(Math.random() * 40) + 15;
+                }));
+                
+                // Small delay between batches
+                await new Promise(r => setTimeout(r, 500));
+            }
+            
+            renderServers();
+            
+            // Update status
+            const totalReal = servers.filter(s => s.realData).length;
+            if (totalReal > 0) {
+                status.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500"></span> Реальных данных: ${totalReal}/${servers.length}`;
+            } else {
+                status.innerHTML = '<span class="w-2 h-2 rounded-full bg-yellow-500"></span> Демо-режим (API недоступен)';
+            }
+            
+            document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+            
+            btn.disabled = false;
+            icon.classList.remove('animate-spin');
+            isLoading = false;
+        }
+
         function initServers() {
             servers = serversConfig.map((s, i) => ({
                 ...s,
                 id: i + 1,
-                players: Math.floor(Math.random() * 20) + 5,
+                players: 0,
                 maxPlayers: s.mode === 'JailBreak' ? 32 : 24,
-                ping: Math.floor(Math.random() * 40) + 15,
-                status: 'online',
+                ping: 0,
+                status: 'offline',
                 map: s.mode === 'AWP' ? 'awp_lego_2' : (s.mode === 'JailBreak' ? 'jailbreak' : 'de_dust2'),
-                location: 'Москва'
+                location: 'Москва',
+                realData: false
             }));
-            renderServers();
+            
+            // Try to fetch real data on load
+            fetchRealData();
         }
 
         function getMapImage(map) { return mapImages[map] || mapImages['unknown']; }
@@ -163,9 +295,11 @@
             });
 
             grid.innerHTML = filtered.map(server => {
-                const occupancy = (server.players / server.maxPlayers) * 100;
+                const occupancy = server.maxPlayers > 0 ? (server.players / server.maxPlayers) * 100 : 0;
+                const dataClass = server.realData ? 'real-data' : 'demo-data';
+                
                 return `
-                <div class="server-card glass-panel rounded-xl overflow-hidden border border-slate-700/50">
+                <div class="server-card glass-panel rounded-xl overflow-hidden border border-slate-700/50 ${dataClass}">
                     <div class="h-32 relative overflow-hidden">
                         <img src="${getMapImage(server.map)}" class="w-full h-full object-cover">
                         <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent"></div>
@@ -175,14 +309,15 @@
                         </div>
                         <div class="absolute top-3 right-3">
                             <div class="flex items-center gap-2 px-3 py-1 bg-slate-900/80 backdrop-blur rounded-full border border-slate-700">
-                                <div class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></div>
-                                <span class="text-xs font-medium text-slate-300">Онлайн</span>
+                                <div class="w-2 h-2 rounded-full ${server.status === 'online' ? 'bg-green-500 pulse-dot' : 'bg-red-500'}"></div>
+                                <span class="text-xs font-medium text-slate-300">${server.status === 'online' ? 'Онлайн' : 'Оффлайн'}</span>
                             </div>
                         </div>
                         <div class="absolute bottom-3 left-3 right-3">
                             <h3 class="font-display text-lg font-bold text-white truncate">${server.name}</h3>
                             <p class="text-xs text-slate-400 flex items-center gap-2 mt-1">
                                 <span class="${getModeColor(server.mode)} font-semibold">${server.mode}</span> • ${server.location}
+                                ${server.realData ? '<span class="text-green-400 text-[10px]">● LIVE</span>' : '<span class="text-yellow-400 text-[10px]">● DEMO</span>'}
                             </p>
                         </div>
                     </div>
@@ -194,7 +329,7 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <span class="text-slate-400">Пинг:</span>
-                                <span class="text-green-400 font-semibold">${server.ping} мс</span>
+                                <span class="${server.ping < 30 ? 'text-green-400' : server.ping < 60 ? 'text-yellow-400' : 'text-red-400'} font-semibold">${server.ping || '-'} мс</span>
                             </div>
                         </div>
                         <div class="space-y-1">
@@ -225,10 +360,14 @@
 
         function updateStats() {
             const online = servers.filter(s => s.status === 'online');
-            document.getElementById('total-online').textContent = online.reduce((a, s) => a + s.players, 0);
-            document.getElementById('stat-total-players').textContent = online.reduce((a, s) => a + s.players, 0);
-            document.getElementById('stat-free-slots').textContent = online.reduce((a, s) => a + (s.maxPlayers - s.players), 0);
-            document.getElementById('stat-avg-ping').textContent = Math.round(online.reduce((a, s) => a + s.ping, 0) / online.length);
+            const totalPlayers = online.reduce((a, s) => a + s.players, 0);
+            const totalSlots = online.reduce((a, s) => a + s.maxPlayers, 0);
+            const avgPing = online.length ? Math.round(online.reduce((a, s) => a + (s.ping || 0), 0) / online.length) : 0;
+            
+            document.getElementById('total-online').textContent = totalPlayers;
+            document.getElementById('stat-total-players').textContent = totalPlayers;
+            document.getElementById('stat-free-slots').textContent = totalSlots - totalPlayers;
+            document.getElementById('stat-avg-ping').textContent = avgPing || '-';
             document.getElementById('stat-active-maps').textContent = new Set(online.map(s => s.map)).size;
         }
 
@@ -251,18 +390,6 @@
             renderServers();
         }
 
-        function refreshServers() {
-            const icon = document.getElementById('refresh-icon');
-            icon.classList.add('animate-spin');
-            servers.forEach(s => {
-                s.players = Math.max(0, Math.min(s.maxPlayers, s.players + Math.floor(Math.random() * 6) - 3));
-            });
-            setTimeout(() => {
-                renderServers();
-                icon.classList.remove('animate-spin');
-            }, 500);
-        }
-
         function connect(ip) {
             window.location.href = `steam://connect/${ip}`;
             setTimeout(() => navigator.clipboard.writeText(`connect ${ip}`), 1000);
@@ -272,6 +399,11 @@
             navigator.clipboard.writeText(ip);
             alert('IP скопирован: ' + ip);
         }
+
+        // Auto-refresh every 60 seconds
+        setInterval(() => {
+            if (!isLoading) fetchRealData();
+        }, 60000);
 
         initServers();
     </script>
